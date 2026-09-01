@@ -1,1 +1,113 @@
+streamlit
+streamlit-drawable-canvas
 
+import math
+import random
+import time
+import streamlit as st
+from streamlit_drawable_canvas import st_canvas
+
+st.set_page_config(page_title="LOL 무빙 연습실", layout="centered")
+
+st.title("🎯 LOL 무빙 연습실")
+st.caption("클릭한 위치로 챔피언이 이동합니다. 적의 스킬 피하기!")
+
+# 1. 게임 상태 초기화
+if "champ_pos" not in st.cookies:
+    st.session_state.champ_pos = [300, 500]  # x, y
+    st.session_state.target_pos = [300, 500]  # 클릭 목표 위치
+    st.session_state.skill_pos = [random.randint(50, 550), 0]  # 적 스킬 위치
+    st.session_state.score = 0
+    st.session_state.game_over = False
+
+# 리셋 버튼
+if st.button("게임 다시 시작"):
+    st.session_state.champ_pos = [300, 500]
+    st.session_state.target_pos = [300, 500]
+    st.session_state.skill_pos = [random.randint(50, 550), 0]
+    st.session_state.score = 0
+    st.session_state.game_over = False
+    st.rerun()
+
+if st.session_state.game_over:
+    st.error(f"💥 스킬에 맞았습니다! 최종 점수: {st.session_state.score}점")
+else:
+    # 2. 위치 업데이트 로직
+    # 챔피언 이동 (목표 지점으로 속도만큼 이동)
+    speed = 15
+    dx = st.session_state.target_pos[0] - st.session_state.champ_pos[0]
+    dy = st.session_state.target_pos[1] - st.session_state.champ_pos[1]
+    dist = math.hypot(dx, dy)
+
+    if dist > speed:
+        st.session_state.champ_pos[0] += (dx / dist) * speed
+        st.session_state.champ_pos[1] += (dy / dist) * speed
+    else:
+        st.session_state.champ_pos = list(st.session_state.target_pos)
+
+    # 적 스킬 낙하
+    skill_speed = 12 + (st.session_state.score // 5)  # 점수가 높아질수록 빨라짐
+    st.session_state.skill_pos[1] += skill_speed
+
+    # 스킬이 화면 아래로 나갔을 때 리셋 및 점수 획득
+    if st.session_state.skill_pos[1] > 600:
+        st.session_state.skill_pos = [random.randint(50, 550), 0]
+        st.session_state.score += 1
+
+    # 피격 판정 (두 원의 중심 거리 비교)
+    hit_dist = math.hypot(
+        st.session_state.champ_pos[0] - st.session_state.skill_pos[0],
+        st.session_state.champ_pos[1] - st.session_state.skill_pos[1],
+    )
+    if hit_dist < 25:  # 챔피언 반지름(15) + 스킬 반지름(10)
+        st.session_state.game_over = True
+        st.rerun()
+
+    # 3. 캔버스에 그릴 오브젝트 생성 (Fabric.js JSON 형식)
+    objects = [
+        # 챔피언 (파란색 원)
+        {
+            "type": "circle",
+            "left": st.session_state.champ_pos[0] - 15,
+            "top": st.session_state.champ_pos[1] - 15,
+            "radius": 15,
+            "fill": "#1E90FF",
+            "selectable": False,
+        },
+        # 적 스킬 (빨간색 원)
+        {
+            "type": "circle",
+            "left": st.session_state.skill_pos[0] - 10,
+            "top": st.session_state.skill_pos[1] - 10,
+            "radius": 10,
+            "fill": "#FF4500",
+            "selectable": False,
+        },
+    ]
+
+    # 4. 캔버스 출력 및 클릭 감지
+    canvas_result = st_canvas(
+        fill_color="rgba(255, 165, 0, 0.3)",
+        stroke_width=1,
+        initial_drawing={"objects": objects},
+        update_streamlit=True,
+        height=600,
+        width=600,
+        drawing_mode="point",
+        key="canvas",
+    )
+
+    # 클릭 발생 시 목표 위치 업데이트
+    if canvas_result.json_data and canvas_result.json_data["objects"]:
+        last_object = canvas_result.json_data["objects"][-1]
+        if last_object["type"] == "circle":  # 클릭 포인트
+            new_x = last_object["left"]
+            new_y = last_object["top"]
+            if [new_x, new_y] != st.session_state.target_pos:
+                st.session_state.target_pos = [new_x, new_y]
+
+    st.write(f"현재 점수: **{st.session_state.score}**점")
+
+    # 프레임 갱신 (약 0.05초 대기 후 재실행)
+    time.sleep(0.05)
+    st.rerun()

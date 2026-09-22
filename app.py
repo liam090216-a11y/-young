@@ -24,7 +24,7 @@ SD_SCHUL_CODE = "7530882"
 
 def fetch_meal_data(date_ymd):
   params = {
-      "KEY": "sample",  # 기본 테스트용 키 (운영 환경에서는 개인 키 또는 st.secrets 활용 가능)
+ #     "KEY": "sample",  # 기본 테스트용 키 (운영 환경에서는 개인 키 또는 st.secrets 활용 가능)
       "Type": "json",
       "ATPT_OFCDC_SC_CODE": ATPT_OFCDC_SC_CODE,
       "SD_SCHUL_CODE": SD_SCHUL_CODE,
